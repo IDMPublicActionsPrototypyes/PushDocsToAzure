@@ -78,13 +78,17 @@ runs:
     - name: Create staging documents URL      
       shell: bash 
       run: |
-        echo "DESTINATION_PATH=${{ inputs.blob_container_name }}/${{ inputs.target_location }}/${{env.THIS_RUN}}/${{ inputs.working_directory }}" >> $GITHUB_ENV
+        echo  "Create staging documents URL"
+        echo "DESTINATION_PATH='${{ inputs.blob_container_name }}/${{ inputs.target_location }}/${{env.THIS_RUN}}/${{ inputs.working_directory }}'" >> $GITHUB_ENV
         echo "LINK_URL=${{ inputs.blob_endpoint }}/${{ inputs.target_location }}/${{env.THIS_RUN}}/${{ inputs.working_directory }}/${{ inputs.index_html }}" >> $GITHUB_ENV
 
     # Provides the final link to the publicly accessible files.
     - name: YOUR LINK
       shell: bash 
-      run: echo "${{ inputs.LINK_URL }}"
+      run: |
+        echo "Printing your link:" 
+        echo "${{ inputs.LINK_URL }}"
+        echo "Printing DESTINATION_PATH ${DESTINATION_PATH}"
 
     # AZURE LOGIN:
     - uses: azure/login@v1
@@ -94,6 +98,7 @@ runs:
     - uses: azure/CLI@v1      
       with:
         inlineScript: |
+            echo "AZURE CLI"
             az storage blob upload-batch -s ${{ inputs.working_directory }} --account-name ${{ inputs.account_name }}  --auth-mode key -d ${DESTINATION_PATH}
             az storage blob upload-batch -s ${{ inputs.working_directory }}/_tar --account-name ${{ inputs.account_name }} --overwrite true --auth-mode key -d ${{ inputs.blob_container_name }}/${{ inputs.target_location }}/Test
             az cdn endpoint purge --content-paths  "/*" --profile-name ${{ inputs.cdn_profile_name }} --name ${{ inputs.cdn_endpoint_name }} --resource-group ${{ inputs.resource_group }}
