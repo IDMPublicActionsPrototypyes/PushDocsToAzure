@@ -68,7 +68,6 @@ runs:
       shell: bash 
       id: date
       run: |
-        echo "getdate=$(TZ='America/Los_Angeles' date +'%B %d %H:%M:%S')" >> $GITHUB_ENV
         echo "THIS_RUN=$(TZ='America/Los_Angeles' date +'%B%d-%H%M%S')" >> $GITHUB_ENV
         
     
@@ -84,46 +83,28 @@ runs:
       run: echo "${{ env.LINK_URL }}"
 
     # AZURE LOGIN:
-    - name: Azure login
-      id: azure-login
-      uses: azure/login@v1
+    - uses: azure/login@v1
       with:
           creds: ${{ inputs.service_principal_credentials }} 
-          
-    # AZURE UPLOAD:
-    - name: Upload to blob storage under $web
-      uses: azure/CLI@v1
+
+    - uses: azure/CLI@v1
       with:
         inlineScript: |
             az storage blob upload-batch -s ${{ inputs.working_directory }} --account-name ${{ inputs.account_name }}  --auth-mode key -d ${DESTINATION_PATH}
-    
-    - name: Upload updated tar file to blob storage under $web
-      uses: azure/CLI@v1
-      with:
-        inlineScript: |
-            az storage blob upload-batch -s ${{ inputs.working_directory }}/_tar --account-name ${{ inputs.account_name }} --overwrite true --auth-mode key -d ${{ inputs.blob_container_name }}/${{ inputs.target_location }}/DocsTextTar
+            az storage blob upload-batch -s ${{ inputs.working_directory }}/_tar --account-name ${{ inputs.account_name }} --overwrite true --auth-mode key -d ${{ inputs.blob_container_name }}/${{ inputs.target_location }}/Test
+            az cdn endpoint purge --content-paths  "/*" --profile-name ${{ inputs.cdn_profile_name }} --name ${{ inputs.cdn_endpoint_name }} --resource-group ${{ inputs.resource_group }}
+            az logout
 
     - name: YOUR TAR FILE LINK
       shell: bash 
       run: echo "${{ env.LINK_TO_TAR }}"
         
-    - name: Purge CDN endpoint
-      shell: bash
-      uses: azure/CLI@v1
-      with:
-          inlineScript: |
-               az cdn endpoint purge --content-paths  "/*" --profile-name ${{ inputs.cdn_profile_name }} --name ${{ inputs.cdn_endpoint_name }} --resource-group ${{ inputs.resource_group }}
-               
-    - name: Azure logout
-      shell: bash
-      run: az logout
 
     # Updates PR
-    - name: Updates PR
-      uses: mshick/add-pr-comment@v1
+    - uses: mshick/add-pr-comment@v1
       env:
           GITHUB_TOKEN: ${{ inputs.pr_update_token }}
       with:
           message: |
-            ${{ steps.date.outputs.getdate }} [->> Link to documents preview](${{ env.LINK_URL }})**
+            [->> Link to documents preview](${{ env.LINK_URL }})**
 
