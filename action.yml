@@ -105,6 +105,7 @@ runs:
       run: echo "${{ env.LINK_TO_TAR }}"
         
     - name: Purge CDN endpoint
+      shell: bash
       uses: azure/CLI@v1
       with:
           inlineScript: |
@@ -117,7 +118,7 @@ runs:
     - name: Updates PR
       uses: mshick/add-pr-comment@v1
       env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ inputs.pr_update_token }}
       with:
           message: |
             ${{ steps.date.outputs.getdate }} - Run Id: ${{github.run_id}} **[->> Link to documents preview](${{ env.LINK_URL }})**
