@@ -51,23 +51,33 @@ runs:
     - name: Build docs - html - no break
       id: build-docs
       shell: bash
+      env:
+        working_directory: ${{ inputs.working_directory }}
       run: |
-        ls -l; cd ${{ inputs.working_directory }}; whoami
+        ls -l; cd ${{ env.working_directory }}; whoami
         make clean
         make htmlnobreak
         make text
         ls -l
 
     - name: Generate TAR file
+      env:
+        working_directory: ${{ inputs.working_directory }}
+        blob_endpoint: ${{ inputs.blob_endpoint }}
+        target_location: ${{ inputs.target_location }}
+        blob_container_name: ${{ inputs.blob_container_name }}
+        index_html: ${{ inputs.index_html }}
+        tar_file_name: ${{ inputs.tar_file_name }} 
       shell: bash
       run: |
-        cd ${{ inputs.working_directory }}
-        echo "LINK_TO_TAR=${{ inputs.blob_endpoint }}/${{ inputs.target_location }}/DocsTextTar/${{ inputs.tar_file_name }}.tar.gz" >> $GITHUB_ENV      
-        tar -czvf ${{ inputs.tar_file_name }}.tar.gz _build/text/ && mkdir _tar && mv ${{ inputs.tar_file_name }}.tar.gz _tar/ && ls -l 
+        cd ${{ env.working_directory }}
+        echo "LINK_TO_TAR=${{ env.blob_endpoint }}/${{ env.target_location }}/DocsTextTar/${{ env.tar_file_name }}.tar.gz" >> $GITHUB_ENV      
+        tar -czvf ${{ env.tar_file_name }}.tar.gz _build/text/ && mkdir _tar && mv ${{ env.tar_file_name }}.tar.gz _tar/ && ls -l 
 
     # Generates Unique folder name
     - name: Get current date to generate partial url link
       shell: bash 
+      
       id: date
       run: |
         echo "THIS_RUN=$(TZ='America/Los_Angeles' date +'%B%d-%H%M%S')" >> $GITHUB_ENV
@@ -75,9 +85,16 @@ runs:
     
     - name: Create staging documents URL      
       shell: bash 
+      env:
+        working_directory: ${{ inputs.working_directory }}
+        blob_endpoint: ${{ inputs.blob_endpoint }}
+        target_location: ${{ inputs.target_location }}
+        blob_container_name: ${{ inputs.blob_container_name }}
+        index_html: ${{ inputs.index_html }}
+        tar_file_name: ${{ inputs.tar_file_name }}      
       run: |
-        echo "DESTINATION_PATH=${{ inputs.blob_container_name }}/${{ inputs.target_location }}/${{env.THIS_RUN}}/${{ inputs.working_directory }}" >> $GITHUB_ENV
-        echo "LINK_URL=${{ inputs.blob_endpoint }}/${{ inputs.target_location }}/${{env.THIS_RUN}}/${{ inputs.working_directory }}/${{ inputs.index_html }}" >> $GITHUB_ENV
+        echo "DESTINATION_PATH=${{ env.blob_container_name }}/${{ env.target_location }}/${{env.THIS_RUN}}/${{ env.working_directory }}" >> $GITHUB_ENV
+        echo "LINK_URL=${{ env.blob_endpoint }}/${{ env.target_location }}/${{env.THIS_RUN}}/${{ env.working_directory }}/${{ env.index_html }}" >> $GITHUB_ENV
 
     # Provides the final link to the publicly accessible files.
     - name: YOUR LINK
@@ -87,14 +104,27 @@ runs:
     # AZURE LOGIN:
     - uses: azure/login@v1
       with:
-          creds: ${{ inputs.service_principal_credentials }} 
+          creds: ${{ env.service_principal_credentials }} 
 
     - uses: azure/CLI@v1
+      env:
+        working_directory: ${{ inputs.working_directory }}
+        blob_endpoint: ${{ inputs.blob_endpoint }}
+        target_location: ${{ inputs.target_location }}
+        blob_container_name: ${{ inputs.blob_container_name }}
+        index_html: ${{ inputs.index_html }}
+        tar_file_name: ${{ inputs.tar_file_name }}
+        service_principal_credentials: ${{ inputs.service_principal_credentials }}
+        account_name: ${{ inputs.account_name }}
+        cdn_profile_name: ${{ inputs.cdn_profile_name }}
+        cdn_endpoint_name: ${{ inputs.cdn_endpoint_name }}
+        resource_group: ${{ inputs.resource_group }}
+        pr_update_token: ${{ inputs.pr_update_token }}          
       with:
         inlineScript: |
-            az storage blob upload-batch -s ${{ inputs.working_directory }} --account-name ${{ inputs.account_name }}  --auth-mode key -d ${DESTINATION_PATH}
-            az storage blob upload-batch -s ${{ inputs.working_directory }}/_tar --account-name ${{ inputs.account_name }} --overwrite true --auth-mode key -d ${{ inputs.blob_container_name }}/${{ inputs.target_location }}/Test
-            az cdn endpoint purge --content-paths  "/*" --profile-name ${{ inputs.cdn_profile_name }} --name ${{ inputs.cdn_endpoint_name }} --resource-group ${{ inputs.resource_group }}
+            az storage blob upload-batch -s ${{ env.working_directory }} --account-name ${{ env.account_name }}  --auth-mode key -d ${DESTINATION_PATH}
+            az storage blob upload-batch -s ${{ env.working_directory }}/_tar --account-name ${{ env.account_name }} --overwrite true --auth-mode key -d ${{ env.blob_container_name }}/${{ env.target_location }}/Test
+            az cdn endpoint purge --content-paths  "/*" --profile-name ${{ env.cdn_profile_name }} --name ${{ env.cdn_endpoint_name }} --resource-group ${{ env.resource_group }}
             az logout
 
     - name: YOUR TAR FILE LINK
@@ -105,7 +135,7 @@ runs:
     # Updates PR
     - uses: mshick/add-pr-comment@v1
       env:
-          GITHUB_TOKEN: ${{ inputs.pr_update_token }}
+          GITHUB_TOKEN: ${{ env.pr_update_token }}
       with:
           message: |
             [->> Link to documents preview](${{ env.LINK_URL }})**
