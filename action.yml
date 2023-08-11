@@ -50,16 +50,18 @@ runs:
   steps:
     - name: Build docs - html - no break
       id: build-docs
-      working-directory: ${{ inputs.working_directory }}
       shell: bash
       run: |
+        ls -l; cd ${{ inputs.working_directory }}; whoami
         make clean
         make htmlnobreak
         make text
+        ls -l
 
     - name: Generate TAR file
       shell: bash
       run: |
+        cd ${{ inputs.working_directory }}
         echo "LINK_TO_TAR=${{ inputs.blob_endpoint }}/${{ inputs.target_location }}/DocsTextTar/${{ inputs.tar_file_name }}.tar.gz" >> $GITHUB_ENV      
         tar -czvf ${{ inputs.tar_file_name }}.tar.gz _build/text/ && mkdir _tar && mv ${{ inputs.tar_file_name }}.tar.gz _tar/ && ls -l 
 
