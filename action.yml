@@ -54,7 +54,14 @@ runs:
       env:
         working_directory: ${{ inputs.working_directory }}
       run: |
-        ls -l; cd ${{ env.working_directory }}; whoami
+        ls -l
+        cd docs
+        echo "Working directory: ${{ env.working_directory }}"
+        echo "inputs working directory: ${{ inputs.working_directory }}"
+        echo "${env.working_directory}"
+        echo "${inputs.working_directory}"
+        
+        ls -
         make clean
         make htmlnobreak
         make text
