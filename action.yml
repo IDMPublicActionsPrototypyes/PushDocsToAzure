@@ -8,7 +8,7 @@ inputs:
   blob_endpoint:
     description: 'Azure blob endpoint'
     required: true
-  target_tarfile_location:
+  target_location:
     description: 'Target Location and repo identifier'
     required: false
   blob_container_name:
@@ -25,6 +25,18 @@ inputs:
   account_name:
     description: "Azure Account name"
     default: "idmstagingsomething"
+  cdn_profile_name: 
+    description: "Blob container CDN web profile name"
+    default: "idmdocs-cdn-webprofile" 
+    required: false
+  cdn_endpoint_name:
+    description: "Blob cdn end point name"
+    default: "idmdocs-cdn-webendpoint" 
+    required: false
+  resource_group:
+    description: "Resource group name"
+    default: "IDMDocsPreviewGroup"
+    required: false
 
 outputs: 
   yourlink:
@@ -46,7 +58,7 @@ runs:
     - name: Generate TAR file
       shell: bash
       run: |
-        echo "LINK_TO_TAR=${{ inputs.blob_endpoint }}/${{ inputs.target_tarfile_location }}/DocsTextTar/${{ inputs.tar_file_name }}.tar.gz" >> $GITHUB_ENV      
+        echo "LINK_TO_TAR=${{ inputs.blob_endpoint }}/${{ inputs.target_location }}/DocsTextTar/${{ inputs.tar_file_name }}.tar.gz" >> $GITHUB_ENV      
         tar -czvf ${{ inputs.tar_file_name }}.tar.gz _build/text/ && mkdir _tar && mv ${{ inputs.tar_file_name }}.tar.gz _tar/ && ls -l 
 
     # Generates Unique folder name
@@ -61,8 +73,8 @@ runs:
     - name: Create staging documents URL      
       shell: bash 
       run: |
-        echo "DESTINATION_PATH=${{ inputs.blob_container_name }}/${{ inputs.target_tarfile_location }}/${{env.THIS_RUN}}/${{ inputs.working_directory }}" >> $GITHUB_ENV
-        echo "LINK_URL=${{ inputs.blob_endpoint }}/${{ inputs.target_tarfile_location }}/${{env.THIS_RUN}}/${{ inputs.working_directory }}/${INDEX_HTML}" >> $GITHUB_ENV
+        echo "DESTINATION_PATH=${{ inputs.blob_container_name }}/${{ inputs.target_location }}/${{env.THIS_RUN}}/${{ inputs.working_directory }}" >> $GITHUB_ENV
+        echo "LINK_URL=${{ inputs.blob_endpoint }}/${{ inputs.target_location }}/${{env.THIS_RUN}}/${{ inputs.working_directory }}/${{ inputs.index_html }}" >> $GITHUB_ENV
 
     # Provides the final link to the publicly accessible files.
     - name: YOUR LINK
@@ -87,7 +99,7 @@ runs:
       uses: azure/CLI@v1
       with:
         inlineScript: |
-            az storage blob upload-batch -s docs/_tar --account-name idmdocsstaging --overwrite true --auth-mode key -d ${BLOB_CONTAINER_NAME}/${{ inputs.target_tarfile_location }}/DocsTextTar
+            az storage blob upload-batch -s ${{ inputs.working_directory }}/_tar --account-name ${{ inputs.account_name }} --overwrite true --auth-mode key -d ${{ inputs.blob_container_name }}/${{ inputs.target_location }}/DocsTextTar
 
     - name: YOUR TAR FILE LINK
       shell: bash 
@@ -97,7 +109,7 @@ runs:
       uses: azure/CLI@v1
       with:
           inlineScript: |
-               az cdn endpoint purge --content-paths  "/*" --profile-name "idmdocs-cdn-webprofile" --name "idmdocs-cdn-webendpoint" --resource-group "IDMDocsPreviewGroup"
+               az cdn endpoint purge --content-paths  "/*" --profile-name ${{ inputs.cdn_profile_name }} --name ${{ inputs.cdn_endpoint_name }} --resource-group ${{ inputs.resource_group }}
                
     - name: Azure logout
       run: az logout
