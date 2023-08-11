@@ -10,7 +10,7 @@ inputs:
     required: true
   target_location:
     description: 'Target Location and repo identifier'
-    required: false
+    required: true
   blob_container_name:
     description: 'Azure container name'
     required: true
@@ -20,23 +20,22 @@ inputs:
     required: false
   tar_file_name:
     description: 'Unique TAR file name'
+    required: true
   service_principal_credentials:
     description: "BLOB_JSON_SERVICE_PRINCIPAL_CREDENTIALS"
+    required: true
   account_name:
     description: "Azure Account name"
-    default: "idmstagingsomething"
+    required: true
   cdn_profile_name: 
     description: "Blob container CDN web profile name"
-    default: "idmdocs-cdn-webprofile" 
-    required: false
+    required: true
   cdn_endpoint_name:
     description: "Blob cdn end point name"
-    default: "idmdocs-cdn-webendpoint" 
-    required: false
+    required: true
   resource_group:
     description: "Resource group name"
-    default: "IDMDocsPreviewGroup"
-    required: false
+    required: true
 
 outputs: 
   yourlink:
