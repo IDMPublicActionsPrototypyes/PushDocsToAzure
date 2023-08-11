@@ -1,0 +1,124 @@
+name: 'Sphinx Azure Upload'
+description: 'Installs Sphinx, builds HTML docs, and uploads to Azure Blob storage'
+author:  'Minerva Gomez Cuenca'
+inputs: 
+  working_directory:
+    description: 'Documents root rolder name'
+    required: true
+  blob_endpoint:
+    description: 'Azure blob endpoint'
+    required: true
+  target_location:
+    description: 'Target Location and repo identifier'
+    required: true
+  blob_container_name:
+    description: 'Azure container name'
+    required: true
+  index_html:
+    description: 'Entry point for accessing the site'
+    default: index.html
+    required: false
+  tar_file_name:
+    description: 'Unique TAR file name'
+    required: true
+  service_principal_credentials:
+    description: "BLOB_JSON_SERVICE_PRINCIPAL_CREDENTIALS"
+    required: true
+  account_name:
+    description: "Azure Account name"
+    required: true
+  cdn_profile_name: 
+    description: "Blob container CDN web profile name"
+    required: true
+  cdn_endpoint_name:
+    description: "Blob cdn end point name"
+    required: true
+  resource_group:
+    description: "Resource group name"
+    required: true
+
+outputs: 
+  yourlink:
+    description: 'This is the entry point to the generated documents'
+    value: ${{ steps.docsbuild.outputs.yourlink }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Build docs - html - no break
+      id: build-docs
+      working-directory: ${{ inputs.working_directory }}
+      shell: bash
+      run: |
+        make clean
+        make htmlnobreak
+        make text
+
+    - name: Generate TAR file
+      shell: bash
+      run: |
+        echo "LINK_TO_TAR=${{ inputs.blob_endpoint }}/${{ inputs.target_location }}/DocsTextTar/${{ inputs.tar_file_name }}.tar.gz" >> $GITHUB_ENV      
+        tar -czvf ${{ inputs.tar_file_name }}.tar.gz _build/text/ && mkdir _tar && mv ${{ inputs.tar_file_name }}.tar.gz _tar/ && ls -l 
+
+    # Generates Unique folder name
+    - name: Get current date to generate partial url link
+      shell: bash 
+      id: date
+      run: |
+        echo "getdate=$(TZ='America/Los_Angeles' date +'%B %d %H:%M:%S')" >> $GITHUB_ENV
+        echo "THIS_RUN=$(TZ='America/Los_Angeles' date +'%B%d-%H%M%S')" >> $GITHUB_ENV
+        
+    
+    - name: Create staging documents URL      
+      shell: bash 
+      run: |
+        echo "DESTINATION_PATH=${{ inputs.blob_container_name }}/${{ inputs.target_location }}/${{env.THIS_RUN}}/${{ inputs.working_directory }}" >> $GITHUB_ENV
+        echo "LINK_URL=${{ inputs.blob_endpoint }}/${{ inputs.target_location }}/${{env.THIS_RUN}}/${{ inputs.working_directory }}/${{ inputs.index_html }}" >> $GITHUB_ENV
+
+    # Provides the final link to the publicly accessible files.
+    - name: YOUR LINK
+      shell: bash 
+      run: echo "${{ env.LINK_URL }}"
+
+    # AZURE LOGIN:
+    - name: Azure login
+      id: azure-login
+      uses: azure/login@v1
+      with:
+          creds: ${{ inputs.service_principal_credentials }} 
+          
+    # AZURE UPLOAD:
+    - name: Upload to blob storage under $web
+      uses: azure/CLI@v1
+      with:
+        inlineScript: |
+            az storage blob upload-batch -s ${{ inputs.working_directory }} --account-name ${{ inputs.account_name }}  --auth-mode key -d ${DESTINATION_PATH}
+    
+    - name: Upload updated tar file to blob storage under $web
+      uses: azure/CLI@v1
+      with:
+        inlineScript: |
+            az storage blob upload-batch -s ${{ inputs.working_directory }}/_tar --account-name ${{ inputs.account_name }} --overwrite true --auth-mode key -d ${{ inputs.blob_container_name }}/${{ inputs.target_location }}/DocsTextTar
+
+    - name: YOUR TAR FILE LINK
+      shell: bash 
+      run: echo "${{ env.LINK_TO_TAR }}"
+        
+    - name: Purge CDN endpoint
+      uses: azure/CLI@v1
+      with:
+          inlineScript: |
+               az cdn endpoint purge --content-paths  "/*" --profile-name ${{ inputs.cdn_profile_name }} --name ${{ inputs.cdn_endpoint_name }} --resource-group ${{ inputs.resource_group }}
+               
+    - name: Azure logout
+      run: az logout
+
+    # Updates PR
+    - name: Updates PR
+      uses: mshick/add-pr-comment@v1
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+          message: |
+            ${{ steps.date.outputs.getdate }} - Run Id: ${{github.run_id}} **[->> Link to documents preview](${{ env.LINK_URL }})**
+
