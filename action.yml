@@ -36,6 +36,9 @@ inputs:
   resource_group:
     description: "Resource group name"
     required: true
+  pr_update_token:
+    description: "Github token"
+    required: true
 
 outputs: 
   yourlink:
@@ -112,6 +115,7 @@ runs:
                az cdn endpoint purge --content-paths  "/*" --profile-name ${{ inputs.cdn_profile_name }} --name ${{ inputs.cdn_endpoint_name }} --resource-group ${{ inputs.resource_group }}
                
     - name: Azure logout
+      shell: bash
       run: az logout
 
     # Updates PR
@@ -121,5 +125,5 @@ runs:
           GITHUB_TOKEN: ${{ inputs.pr_update_token }}
       with:
           message: |
-            ${{ steps.date.outputs.getdate }} - Run Id: ${{github.run_id}} **[->> Link to documents preview](${{ env.LINK_URL }})**
+            ${{ steps.date.outputs.getdate }} [->> Link to documents preview](${{ env.LINK_URL }})**
 
