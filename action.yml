@@ -99,8 +99,8 @@ runs:
       with:
         inlineScript: |
             echo "AZURE CLI"
-            az storage blob upload-batch -s ${{ inputs.working_directory }} --account-name ${{ inputs.account_name }}  --auth-mode key -d ${{ inputs.blob_container_name }}/${{ inputs.target_location }}/${{env.THIS_RUN}}/${{ inputs.working_directory }}
-            az storage blob upload-batch -s ${{ inputs.working_directory }}/_tar --account-name ${{ inputs.account_name }} --overwrite true --auth-mode key -d ${{ inputs.blob_container_name }}/${{ inputs.target_location }}/Test
+            az storage blob upload-batch -s ${{ inputs.working_directory }} --account-name ${{ inputs.account_name }}  --auth-mode key -d $web/${{ inputs.target_location }}/${{env.THIS_RUN}}/${{ inputs.working_directory }}
+            az storage blob upload-batch -s ${{ inputs.working_directory }}/_tar --account-name ${{ inputs.account_name }} --overwrite true --auth-mode key -d $web/${{ inputs.target_location }}/Test
             az cdn endpoint purge --content-paths  "/*" --profile-name ${{ inputs.cdn_profile_name }} --name ${{ inputs.cdn_endpoint_name }} --resource-group ${{ inputs.resource_group }}
             az logout
 
