@@ -87,10 +87,8 @@ runs:
       shell: bash 
       run: |
         echo "Printing your link:" 
-        echo "${{ inputs.LINK_URL }}"
-        echo "Printing DESTINATION_PATH ${DESTINATION_PATH}"
-        echo "Printing second try DESTINATION_PATH ${env.DESTINATION_PATH}"
-        
+        echo "${{ env.LINK_URL }}"
+         
 
     # AZURE LOGIN:
     - uses: azure/login@v1
@@ -108,7 +106,7 @@ runs:
 
     - name: YOUR TAR FILE LINK
       shell: bash 
-      run: echo "${{ inputs.LINK_TO_TAR }}"
+      run: echo "${{ env.LINK_TO_TAR }}"
         
 
     # Updates PR
@@ -117,5 +115,5 @@ runs:
           GITHUB_TOKEN: ${{ inputs.pr_update_token }}
       with:
           message: |
-            [->> Link to documents preview](${{ inputs.LINK_URL }})**
+            [->> Link to documents preview](${{ env.LINK_URL }})**
 
