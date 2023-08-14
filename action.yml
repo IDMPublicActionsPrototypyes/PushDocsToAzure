@@ -16,11 +16,18 @@ inputs:
     required: true
   index_html:
     description: 'Entry point for accessing the site'
-    default: index.html
+    default: 'index.html'
     required: false
+  make_text:
+    description: "determines if the sphinx build TAR file with the text file is generated"
+    default: true
   tar_file_name:
     description: 'Unique TAR file name'
     required: true
+  tar_target_folder:
+    description: 'Tar destination Folder Name'
+    required: false
+    default: 'download/tar'
   service_principal_credentials:
     description: "BLOB_JSON_SERVICE_PRINCIPAL_CREDENTIALS"
     required: true
@@ -57,14 +64,16 @@ runs:
         echo "Working directory: ${{ inputs.working_directory }}"
         make clean
         make htmlnobreak
-        make text
+      
         ls -l
 
     - name: Generate TAR file
+      if: ${{ inputs.make_text }}
       shell: bash
       run: |
         cd ${{ inputs.working_directory }}
-        echo "LINK_TO_TAR=${{ inputs.blob_endpoint }}/${{ inputs.target_location }}/DocsTextTar/${{ inputs.tar_file_name }}.tar.gz" >> $GITHUB_ENV      
+        make text
+        echo "LINK_TO_TAR=${{ inputs.blob_endpoint }}/${{ inputs.target_location }}/${{ inputs.tar_target_folder }}/${{ inputs.tar_file_name }}.tar.gz" >> $GITHUB_ENV      
         tar -czvf ${{ inputs.tar_file_name }}.tar.gz _build/text/ && mkdir _tar && mv ${{ inputs.tar_file_name }}.tar.gz _tar/ && ls -l 
 
     # Generates Unique folder name
@@ -98,9 +107,17 @@ runs:
     - uses: azure/CLI@v1      
       with:
         inlineScript: |
-            echo "AZURE CLI"
-            az storage blob upload-batch -s ${{ inputs.working_directory }} --account-name ${{ inputs.account_name }}  --auth-mode key -d $web/${{ inputs.target_location }}/${{env.THIS_RUN}}/${{ inputs.working_directory }}
-            az storage blob upload-batch -s ${{ inputs.working_directory }}/_tar --account-name ${{ inputs.account_name }} --overwrite true --auth-mode key -d $web/${{ inputs.target_location }}/Test
+            az storage blob upload-batch -s ${{ inputs.working_directory }}/_build/html --account-name ${{ inputs.account_name }}  --auth-mode key -d '${{ inputs.blob_container_name}}/${{ inputs.target_location }}/${{env.THIS_RUN}}/${{ inputs.working_directory }}'
+
+    - uses: azure/CLI@v1      
+      if: ${{ inputs.make_text }}
+      with:
+        inlineScript: |
+            az storage blob upload-batch -s ${{ inputs.working_directory }}/_tar --account-name ${{ inputs.account_name }} --overwrite true --auth-mode key -d '${{ inputs.blob_container_name}}/${{ inputs.target_location }}/${{ inputs.tar_target_folder }}'
+
+    - uses: azure/CLI@v1      
+      with:
+        inlineScript: |
             az cdn endpoint purge --content-paths  "/*" --profile-name ${{ inputs.cdn_profile_name }} --name ${{ inputs.cdn_endpoint_name }} --resource-group ${{ inputs.resource_group }}
             az logout
 
@@ -109,11 +126,17 @@ runs:
       run: echo "${{ env.LINK_TO_TAR }}"
         
 
-    # Updates PR
-    - uses: mshick/add-pr-comment@v1
-      env:
-          GITHUB_TOKEN: ${{ inputs.pr_update_token }}
-      with:
-          message: |
-            [->> Link to documents preview](${{ env.LINK_URL }})**
+    # # Updates PR
+    # - uses: mshick/add-pr-comment@v1
+    #   if: github.event_name == 'pull_request'
+    #   env:
+    #       GITHUB_TOKEN: ${{ inputs.pr_update_token }}
+    #   with:
+    #       message: |
+    #         [->> Link to documents preview](${{ env.LINK_URL }})**
 
+    - uses: gr2m/create-or-update-pull-request-action@v1
+      env:
+        GITHUB_TOKEN: ${{ inputs.pr_update_token }}
+      with:
+        commit-message: "[->> Link to documents preview](${{ env.LINK_URL }})**"
